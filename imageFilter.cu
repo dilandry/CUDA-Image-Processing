@@ -39,7 +39,7 @@
 #define IMG_DATA_OFFSET_POS 10
 #define BITS_PER_PIXEL_POS 28
 
-int swap;
+int swap_2;
 void test_endianess();
 void runMorphologyUnitTests(void);
 void swap_bytes(char *bytes, int num_bytes);
@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
 	test_endianess();     // will set the variable "swap"
 
 	unsigned short *bitsperpixel = (unsigned short *)(&(fdata[BITS_PER_PIXEL_POS]));
-	if (swap) 
+	if (swap_2) 
 	{
 		printf("swapping\n");
 		swap_bytes((char *)(bitsperpixel), sizeof(*bitsperpixel));
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 	}
 
 	unsigned short *data_pos = (unsigned short *)(&(fdata[IMG_DATA_OFFSET_POS]));
-	if (swap) 
+	if (swap_2) 
 	{
 		swap_bytes((char *)(data_pos), sizeof(*data_pos));
 	}
@@ -185,11 +185,11 @@ void test_endianess() {
     char *low = (char *)(&(num));
     if (*low ==  0x78) {
         //dprintf("No need to swap\n");
-        swap = 0;
+        swap_2 = 0;
     }
     else if (*low == 0x12) {
         //dprintf("Need to swap\n");
-        swap = 1;
+        swap_2 = 1;
     }
     else {
         printf("Error: Invalid value found in memory\n");
