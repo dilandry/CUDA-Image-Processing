@@ -26,7 +26,6 @@
 #include <fstream>
 #include <string.h>
 #include <math.h>
-#include <cutil_inline.h>
 #include <stopwatch.h>
 #include <cmath>
 
