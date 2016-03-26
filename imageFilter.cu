@@ -216,8 +216,8 @@ void runMorphologyUnitTests()
    cudaImageHost<int> imgIn(fn, imgW, imgH);
    cudaImageHost<int> imgOut(imgW, imgH);
 
-   //CDL--imgIn.writeFile("ImageIn.txt");
-   imgIn.writeFile("sample.bmp");
+   imgIn.writeFile("ImageIn.txt");
+   //CDL--imgIn.writeFile("sample.bmp");
 
    // A very unique SE for checking coordinate systems
    int se17H = 17;
