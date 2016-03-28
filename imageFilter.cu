@@ -49,8 +49,8 @@ int main(int argc, char *argv[])
 {
 	int i;
 	int fd;
-	//CDL--unsigned char *fdata; //DL: Changed to unsigned
-	int *fdata; //DL: Desperate attempt
+	unsigned char *fdata; //DL: Changed to unsigned
+	//CDL--int *fdata; //DL: Desperate attempt
 	struct stat finfo;
 	char * inputfname;
 	char * outputfname;
@@ -75,42 +75,42 @@ int main(int argc, char *argv[])
 	fd = open(inputfname, O_RDONLY);
 	fstat(fd, &finfo);
 
-	//CDL--fdata = (unsigned char*) malloc(finfo.st_size); //DL: Changed to unsigned
-	fdata = (int*) malloc(finfo.st_size); //DL: Changed to unsigned
+	fdata = (unsigned char*) malloc(finfo.st_size); //DL: Changed to unsigned
+	//CDL--fdata = (int*) malloc(finfo.st_size); //DL: Changed to unsigned
 
 	read (fd, fdata, finfo.st_size);
 
-	// if ((fdata[0] != 'B') || (fdata[1] != 'M')) 
-	// {
-	// 	printf("File is not a valid bitmap file. Terminating the program\n");
-	// 	exit(1);
-	// }
+	if ((fdata[0] != 'B') || (fdata[1] != 'M')) 
+	{
+		printf("File is not a valid bitmap file. Terminating the program\n");
+		exit(1);
+	}
 
-	// test_endianess();     // will set the variable "swap"
+	test_endianess();     // will set the variable "swap"
 
-	// unsigned short *bitsperpixel = (unsigned short *)(&(fdata[BITS_PER_PIXEL_POS]));
-	// if (swap_2) 
-	// {
-	// 	printf("swapping\n");
-	// 	swap_bytes((char *)(bitsperpixel), sizeof(*bitsperpixel));
-	// }
+	unsigned short *bitsperpixel = (unsigned short *)(&(fdata[BITS_PER_PIXEL_POS]));
+	if (swap_2) 
+	{
+		printf("swapping\n");
+		swap_bytes((char *)(bitsperpixel), sizeof(*bitsperpixel));
+	}
 
- // 	// ensure its 3 bytes per pixel
-	// if (*bitsperpixel != 24) 
-	// {
-	// 	printf("Error: Invalid bitmap format - ");
-	// 	printf("This application only accepts 24-bit pictures. Exiting\n");
-	// 	exit(1);
-	// }
+ 	// ensure its 3 bytes per pixel
+	if (*bitsperpixel != 24) 
+	{
+		printf("Error: Invalid bitmap format - ");
+		printf("This application only accepts 24-bit pictures. Exiting\n");
+		exit(1);
+	}
 
 	unsigned short *data_pos = (unsigned short *)(&(fdata[IMG_DATA_OFFSET_POS]));
-	// if (swap_2) 
-	// {
-	// 	swap_bytes((char *)(data_pos), sizeof(*data_pos));
-	// }
+	if (swap_2) 
+	{
+		swap_bytes((char *)(data_pos), sizeof(*data_pos));
+	}
 
-	// int imgdata_bytes = (int)finfo.st_size - (int)(*(data_pos));
-	// printf("This file has %d bytes of image data, %d pixels\n", imgdata_bytes, imgdata_bytes / 3);
+	int imgdata_bytes = (int)finfo.st_size - (int)(*(data_pos));
+	printf("This file has %d bytes of image data, %d pixels\n", imgdata_bytes, imgdata_bytes / 3);
 
 	int width = *((int*)&fdata[18]);
 	printf("Width: %d\n", width);
@@ -120,8 +120,8 @@ int main(int argc, char *argv[])
 	int fileSize = (int) finfo.st_size;	
 
 	//p will point to the first pixel
-	//CDL--unsigned char* p = &(fdata[*data_pos]); //DL: Changed to unsigned
-	int* p = &(fdata[*data_pos]); //DL: Changed to unsigned
+	unsigned char* p = &(fdata[*data_pos]); //DL: Changed to unsigned
+	//CDL--int* p = &(fdata[*data_pos]); //DL: Changed to unsigned
 
 	runWorkbenchUnitTests(p);
 
@@ -296,7 +296,7 @@ void runMorphologyUnitTests()
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-void runWorkbenchUnitTests(int* p)
+void runWorkbenchUnitTests(unsigned char* p)
 {
    cout << "****************************************";
    cout << "***************************************" << endl;
@@ -304,10 +304,10 @@ void runWorkbenchUnitTests(int* p)
 
    // Read the salt image from file
    //CDL--cudaImageHost<int> imgIn("salt256.txt", 256, 256);
-   cudaImageHost<int> imgIn(p, 256, 256);
+   cudaImageHost<unsigned char> imgIn(p, 256, 256);
 
    // Create a place to put the result
-   cudaImageHost<int> imgOut(64, 64);
+   cudaImageHost<unsigned char> imgOut(64, 64);
 
    // A very unique SE for checking coordinate systems
    cudaImageHost<int> se17("asymmPSF_17x17.txt", 17, 17);
