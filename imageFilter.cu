@@ -208,7 +208,8 @@ void runMorphologyUnitTests()
    unsigned int imgW  = 256;
    unsigned int imgH  = 256;
    unsigned int nPix  = imgW*imgH;
-   string fn("salt256.txt");
+   //CDL--string fn("salt256.txt");
+   string fn("sample.bmp");
 
    printf("\nTesting morphology operations on %dx%d mask.\n", imgW,imgH);
    cout << "Reading mask from " << fn.c_str() << endl << endl;
