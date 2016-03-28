@@ -304,10 +304,10 @@ void runWorkbenchUnitTests(int* p)
 
    // Read the salt image from file
    //CDL--cudaImageHost<int> imgIn("salt256.txt", 256, 256);
-   cudaImageHost<int> imgIn(p, 1280, 854);
+   cudaImageHost<int> imgIn(p, 256, 256);
 
    // Create a place to put the result
-   cudaImageHost<int> imgOut(1280, 854);
+   cudaImageHost<int> imgOut(64, 64);
 
    // A very unique SE for checking coordinate systems
    cudaImageHost<int> se17("asymmPSF_17x17.txt", 17, 17);
