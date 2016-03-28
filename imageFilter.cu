@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
 	// 	exit(1);
 	// }
 
-	// unsigned short *data_pos = (unsigned short *)(&(fdata[IMG_DATA_OFFSET_POS]));
+	unsigned short *data_pos = (unsigned short *)(&(fdata[IMG_DATA_OFFSET_POS]));
 	// if (swap_2) 
 	// {
 	// 	swap_bytes((char *)(data_pos), sizeof(*data_pos));
