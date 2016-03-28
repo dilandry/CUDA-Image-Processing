@@ -49,7 +49,8 @@ int main(int argc, char *argv[])
 {
 	int i;
 	int fd;
-	unsigned char *fdata; //DL: Changed to unsigned
+	//CDL--unsigned char *fdata; //DL: Changed to unsigned
+	int *fdata; //DL: Desperate attempt
 	struct stat finfo;
 	char * inputfname;
 	char * outputfname;
