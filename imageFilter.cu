@@ -75,8 +75,9 @@ int main(int argc, char *argv[])
 	fd = open(inputfname, O_RDONLY);
 	fstat(fd, &finfo);
 
-	fdata = (unsigned char*) malloc(finfo.st_size); //DL: Changed to unsigned
-	
+	//CDL--fdata = (unsigned char*) malloc(finfo.st_size); //DL: Changed to unsigned
+	fdata = (int*) malloc(finfo.st_size); //DL: Changed to unsigned
+
 	read (fd, fdata, finfo.st_size);
 
 	if ((fdata[0] != 'B') || (fdata[1] != 'M')) 
