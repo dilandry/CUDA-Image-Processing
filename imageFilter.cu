@@ -42,7 +42,7 @@
 int swap_2;
 void test_endianess();
 void runMorphologyUnitTests(void);
-void runWorkbenchUnitTests(unsigned char* p);
+void runWorkbenchUnitTests(int* p);
 void swap_bytes(char *bytes, int num_bytes);
 
 int main(int argc, char *argv[]) 
@@ -118,7 +118,8 @@ int main(int argc, char *argv[])
 	int fileSize = (int) finfo.st_size;	
 
 	//p will point to the first pixel
-	unsigned char* p = &(fdata[*data_pos]); //DL: Changed to unsigned
+	//CDL--unsigned char* p = &(fdata[*data_pos]); //DL: Changed to unsigned
+	int* p = &(fdata[*data_pos]); //DL: Changed to unsigned
 
 	runWorkbenchUnitTests(p);
 
@@ -293,7 +294,7 @@ void runMorphologyUnitTests()
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-void runWorkbenchUnitTests(unsigned char* p)
+void runWorkbenchUnitTests(int* p)
 {
    cout << "****************************************";
    cout << "***************************************" << endl;
