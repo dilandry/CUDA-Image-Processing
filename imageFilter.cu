@@ -42,7 +42,7 @@
 int swap_2;
 void test_endianess();
 void runMorphologyUnitTests(void);
-void runWorkbenchUnitTests(void);
+void runWorkbenchUnitTests(char* p);
 void swap_bytes(char *bytes, int num_bytes);
 
 int main(int argc, char *argv[]) 
@@ -120,6 +120,9 @@ int main(int argc, char *argv[])
 	//p will point to the first pixel
 	unsigned char* p = &(fdata[*data_pos]); //DL: Changed to unsigned
 
+	runWorkbenchUnitTests(p);
+
+
 	//Set the number of blocks and threads
 	//CDL--dim3 grid(1024, 1, 1/*x, y, x*/);
 	//CDL--dim3 block(12, 1, 1/*x, y, x*/);
@@ -175,8 +178,6 @@ int main(int argc, char *argv[])
 	for(i = 0; i < fileSize; i++)
 		fprintf(writeFile,"%c", fdata[i]);
 	fclose(writeFile);
-
-	runWorkbenchUnitTests();
 
 	return 0;
 } 
@@ -292,7 +293,7 @@ void runMorphologyUnitTests()
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-void runWorkbenchUnitTests(void)
+void runWorkbenchUnitTests(char* p)
 {
    cout << "****************************************";
    cout << "***************************************" << endl;
@@ -300,7 +301,7 @@ void runWorkbenchUnitTests(void)
 
    // Read the salt image from file
    //CDL--cudaImageHost<int> imgIn("salt256.txt", 256, 256);
-   cudaImageHost<int> imgIn("sample.bmp", 1280, 854);
+   cudaImageHost<int> imgIn(p, 1280, 854);
 
    // Create a place to put the result
    cudaImageHost<int> imgOut(1280, 854);
