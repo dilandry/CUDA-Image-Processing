@@ -80,34 +80,34 @@ int main(int argc, char *argv[])
 
 	read (fd, fdata, finfo.st_size);
 
-	if ((fdata[0] != 'B') || (fdata[1] != 'M')) 
-	{
-		printf("File is not a valid bitmap file. Terminating the program\n");
-		exit(1);
-	}
+	// if ((fdata[0] != 'B') || (fdata[1] != 'M')) 
+	// {
+	// 	printf("File is not a valid bitmap file. Terminating the program\n");
+	// 	exit(1);
+	// }
 
-	test_endianess();     // will set the variable "swap"
+	// test_endianess();     // will set the variable "swap"
 
-	unsigned short *bitsperpixel = (unsigned short *)(&(fdata[BITS_PER_PIXEL_POS]));
-	if (swap_2) 
-	{
-		printf("swapping\n");
-		swap_bytes((char *)(bitsperpixel), sizeof(*bitsperpixel));
-	}
+	// unsigned short *bitsperpixel = (unsigned short *)(&(fdata[BITS_PER_PIXEL_POS]));
+	// if (swap_2) 
+	// {
+	// 	printf("swapping\n");
+	// 	swap_bytes((char *)(bitsperpixel), sizeof(*bitsperpixel));
+	// }
 
- 	// ensure its 3 bytes per pixel
-	if (*bitsperpixel != 24) 
-	{
-		printf("Error: Invalid bitmap format - ");
-		printf("This application only accepts 24-bit pictures. Exiting\n");
-		exit(1);
-	}
+ // 	// ensure its 3 bytes per pixel
+	// if (*bitsperpixel != 24) 
+	// {
+	// 	printf("Error: Invalid bitmap format - ");
+	// 	printf("This application only accepts 24-bit pictures. Exiting\n");
+	// 	exit(1);
+	// }
 
-	unsigned short *data_pos = (unsigned short *)(&(fdata[IMG_DATA_OFFSET_POS]));
-	if (swap_2) 
-	{
-		swap_bytes((char *)(data_pos), sizeof(*data_pos));
-	}
+	// unsigned short *data_pos = (unsigned short *)(&(fdata[IMG_DATA_OFFSET_POS]));
+	// if (swap_2) 
+	// {
+	// 	swap_bytes((char *)(data_pos), sizeof(*data_pos));
+	// }
 
 	int imgdata_bytes = (int)finfo.st_size - (int)(*(data_pos));
 	printf("This file has %d bytes of image data, %d pixels\n", imgdata_bytes, imgdata_bytes / 3);
