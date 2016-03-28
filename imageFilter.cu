@@ -109,8 +109,8 @@ int main(int argc, char *argv[])
 	// 	swap_bytes((char *)(data_pos), sizeof(*data_pos));
 	// }
 
-	int imgdata_bytes = (int)finfo.st_size - (int)(*(data_pos));
-	printf("This file has %d bytes of image data, %d pixels\n", imgdata_bytes, imgdata_bytes / 3);
+	// int imgdata_bytes = (int)finfo.st_size - (int)(*(data_pos));
+	// printf("This file has %d bytes of image data, %d pixels\n", imgdata_bytes, imgdata_bytes / 3);
 
 	int width = *((int*)&fdata[18]);
 	printf("Width: %d\n", width);
