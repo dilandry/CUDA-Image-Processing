@@ -42,7 +42,7 @@
 int swap_2;
 void test_endianess();
 void runMorphologyUnitTests(void);
-void runWorkbenchUnitTests(int* p);
+void runWorkbenchUnitTests(unsigned char* p);
 void swap_bytes(char *bytes, int num_bytes);
 
 int main(int argc, char *argv[]) 
