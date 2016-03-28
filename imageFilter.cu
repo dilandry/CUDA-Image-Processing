@@ -307,7 +307,7 @@ void runWorkbenchUnitTests(unsigned char* p)
    cudaImageHost<unsigned char> imgIn(p, 256, 256);
 
    // Create a place to put the result
-   cudaImageHost<unsigned char> imgOut(64, 64);
+   cudaImageHost<int> imgOut(64, 64);
 
    // A very unique SE for checking coordinate systems
    cudaImageHost<int> se17("asymmPSF_17x17.txt", 17, 17);
