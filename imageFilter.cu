@@ -304,7 +304,7 @@ void runWorkbenchUnitTests(unsigned char* p)
 
    // Read the salt image from file
    //CDL--cudaImageHost<int> imgIn("salt256.txt", 256, 256);
-   cudaImageHost<unsigned char> imgIn(p, 256, 256);
+   cudaImageHost<int> imgIn((int)p, 256, 256);
 
    // Create a place to put the result
    cudaImageHost<int> imgOut(64, 64);
