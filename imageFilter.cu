@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
 		fprintf(writeFile,"%c", fdata[i]);
 	fclose(writeFile);
 
-	runMorphologyUnitTests();
+	runWorkbenchUnitTests();
 
 	return 0;
 } 
@@ -205,8 +205,8 @@ void runMorphologyUnitTests()
    /////////////////////////////////////////////////////////////////////////////
    // Allocate host memory and read in the test image from file
    /////////////////////////////////////////////////////////////////////////////
-   unsigned int imgW  = 256;
-   unsigned int imgH  = 256;
+   unsigned int imgW  = 1280;
+   unsigned int imgH  = 854;
    unsigned int nPix  = imgW*imgH;
    //CDL--string fn("salt256.txt");
    string fn("sample.bmp");
@@ -287,6 +287,198 @@ void runMorphologyUnitTests()
    imgIn.writeFile("Image3x3_erode_thin.txt");
    /////////////////////////////////////////////////////////////////////////////
 }
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+void runWorkbenchUnitTests(void)
+{
+   cout << "****************************************";
+   cout << "***************************************" << endl;
+   cout << "***Testing ImageWorkbench basic operations" << endl << endl;
+
+   // Read the salt image from file
+   //CDL--cudaImageHost<int> imgIn("salt256.txt", 256, 256);
+   cudaImageHost<int> imgIn("sample.bmp", 1280, 854);
+
+   // Create a place to put the result
+   cudaImageHost<int> imgOut(1280, 854);
+
+   // A very unique SE for checking coordinate systems
+   cudaImageHost<int> se17("asymmPSF_17x17.txt", 17, 17);
+
+   // Circular SE from utilities file
+   int seCircD = 11;
+   cudaImageHost<int> seCirc(seCircD, seCircD);
+   createBinaryCircle(seCirc.getDataPtr(), seCircD);
+
+   // Check that rectangular SEs work, too
+   int rectH = 5;
+   int rectW = 9;
+   cudaImageHost<int> seRect(rectH, rectW);
+   for(int r=0; r<rectH; r++)
+      for(int c=0; c<rectW; c++)
+         seRect(r, c) = 1;
+
+
+   // The SEs are added to the static, master SE list in ImageWorkbench, and
+   // are used by giving the index into that list (returned by addStructElt())
+   cout << "Adding unique SE to list" << endl;
+   se17.printMask();
+   int seIdxUnique17 = ImageWorkbench::addStructElt(se17);
+
+   cout << "Adding circular SE to list" << endl;
+   seCirc.printMask();
+   int seIdxCircle11 = ImageWorkbench::addStructElt(seCirc);
+
+   cout << "Adding rectangular SE to list" << endl;
+   seRect.printMask();
+   int seIdxRect9x5  = ImageWorkbench::addStructElt(seRect);
+   
+   cudaImageDevice<int>::calculateDeviceMemoryUsage(true);  // printToStdOut==true
+
+
+   /////////////////////////////////////////////////////////////////////////////
+   // Let's start testing ImageWorkbench
+   /////////////////////////////////////////////////////////////////////////////
+   // Create the workbench, which copies the image into device memory
+   ImageWorkbench theIwb(imgIn);
+
+   // Start by simply fetching the unmodified image (sanity check)
+   cout << "Copying unaltered image back to host for verification" << endl;
+   theIwb.copyBufferToHost(imgOut);
+   imgOut.writeFile("Workbench1_In.txt");
+   
+   // Dilate by the circle
+   cout << "Dilating with 11x11 circle" << endl;
+   theIwb.Dilate(seIdxCircle11);
+   theIwb.copyBufferToHost(imgOut);
+   imgOut.writeFile("Workbench2_DilateCirc.txt");
+
+   // We Erode the image now, but with the basic 3x3
+   cout << "Performing simple 3x3 erode" << endl;
+   theIwb.Erode();
+   theIwb.copyBufferToHost(imgOut);
+   imgOut.writeFile("Workbench3_Erode3.txt");
+
+   // We Erode the image now, but with the basic 3x3
+   cout << "Try a closing operation" << endl;
+   theIwb.Close(seIdxRect9x5);
+   theIwb.copyBufferToHost(imgOut);
+   imgOut.writeFile("Workbench4_Close.txt");
+
+   // We now test subtract by eroding an image w/ 3x3 and subtracting from original
+   // Anytime we manually select src/dst for image operations, make sure we end up
+   // with the final result in buffer A, or in buffer B with a a call to flipBuffers()
+   // to make sure that our input/output locations are consistent
+   ImageWorkbench iwb2(imgIn);
+   cout << "Testing subtract kernel" << endl;
+   
+   iwb2.Dilate();
+   iwb2.Dilate();
+   iwb2.copyBufferToHost(imgOut);
+   imgOut.writeFile("Workbench5a_dilated.txt");
+
+   iwb2.Erode(A, 1);  // put result in buffer 1, don't flip
+   iwb2.copyBufferToHost(1, imgOut);
+   imgOut.writeFile("Workbench5b_erode.txt");
+   
+   iwb2.Subtract(1, A, A);
+   iwb2.copyBufferToHost(imgOut);  // default is always the input buffer A
+   imgOut.writeFile("Workbench5c_subtract.txt");
+
+   cudaImageHost<int> cornerDetect(3,3);
+   cornerDetect(0,0) = -1;  cornerDetect(1,0) = -1;  cornerDetect(2,0) = 0;
+   cornerDetect(0,1) = -1;  cornerDetect(1,1) =  1;  cornerDetect(2,1) = 1;
+   cornerDetect(0,2) =  0;  cornerDetect(1,2) =  1;  cornerDetect(2,2) = 0;
+   int seIdxCD = ImageWorkbench::addStructElt(cornerDetect);
+   iwb2.FindAndRemove(seIdxCD);
+   iwb2.copyBufferToHost(imgOut);
+   imgOut.writeFile("Workbench5d_findandrmv.txt");
+
+   cout << endl << "Checking device memory usage so far: " << endl;
+   cudaImageDevice<int>::calculateDeviceMemoryUsage(true);  // printToStdOut==true
+
+   /////////////////////////////////////////////////////////////////////////////
+   /////////////////////////////////////////////////////////////////////////////
+   // With a working workbench, we can finally SOLVE A MAZE !!
+   cout << endl << "Time to solve a maze! " << endl << endl;
+   cudaImageHost<int> mazeImg("elephantmaze.txt", 512, 512);
+   ImageWorkbench iwbMaze(mazeImg);
+
+   // Morph-close the image [for fun, not necessary], write it to file for ref
+   iwbMaze.Close();  
+   iwbMaze.copyBufferToHost(imgOut);
+   imgOut.writeFile("MazeTxt1_In.txt");
+
+   // Start thinning
+   cout << "\tThinning sweep 2x" << endl;
+   iwbMaze.ThinningSweep();
+   iwbMaze.ThinningSweep();
+   iwbMaze.copyBufferToHost(imgOut);
+   imgOut.writeFile("MazeTxt2_Thin2x.txt");
+
+
+   // Finish thinning by checking when the image is no longer changing
+   cout << "\tThinning sweep til complete" << endl;
+   int thinOps = 2;
+   int diff=-1;
+   while(diff != 0)
+   {
+      iwbMaze.ThinningSweep();
+      diff = iwbMaze.CountChanged();
+      thinOps++;
+   }
+   iwbMaze.copyBufferToHost(imgOut);
+   imgOut.writeFile("MazeTxt3_ThinComplete.txt");
+
+   cout << "\tPruning sweep 1-5" << endl;
+   int pruneOps = 0;
+   for(int i=0; i<5; i++)
+   {
+      iwbMaze.PruningSweep();
+      pruneOps++;
+   }
+   iwbMaze.copyBufferToHost(imgOut);
+   imgOut.writeFile("MazeTxt4_Prune5x.txt");
+
+   cout << "\tPruning sweep 6-20" << endl;
+   for(int i=0; i<15; i++)
+   {
+      iwbMaze.PruningSweep();
+      pruneOps++;
+   }
+   iwbMaze.copyBufferToHost(imgOut);
+   imgOut.writeFile("MazeTxt5_Prune20x.txt");
+
+   diff=-1;
+   cout << "\tPruning sweep until complete" << endl;
+   while(diff != 0)
+   {
+      iwbMaze.PruningSweep();
+      diff = iwbMaze.CountChanged();
+      pruneOps++;
+   }
+   iwbMaze.copyBufferToHost(imgOut);
+   imgOut.writeFile("MazeTxt6_PruneComplete.txt");
+
+   int totalHomOps = 8*(thinOps + pruneOps);
+   cout << "Finished the maze!  Total operations: " << endl
+        << "\t" << thinOps  << " thinning sweeps and " << endl
+        << "\t" << pruneOps << " pruning sweeps" << endl
+        << "\tTotal of " << totalHomOps << " HitOrMiss operations and the same "
+        << "number of subtract operations" << endl << endl;
+
+
+   // Check to see how much device memory we're using right now
+   cudaImageDevice<int>::calculateDeviceMemoryUsage(true);  // printToStdOut==true
+
+   cout << "Finished IWB testing!" << endl;
+   cout << "****************************************";
+   cout << "***************************************" << endl;
+
+}
+
 
 
 void swap_bytes(char *bytes, int num_bytes) 
