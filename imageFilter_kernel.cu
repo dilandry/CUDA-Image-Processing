@@ -1,239 +1,124 @@
 #ifndef _IMAGEFILTER_KERNEL_H_
 #define _IMAGEFILTER_KERNEL_H_
-#define getLinearFromXY(x, y, width, height) (x + (y*width))
-#define getX(linear, width, height) ((linear) % width)
-#define getY(linear, width, height) ((linear) / width)
 
-__global__ void imageFilterKernelPartA(uchar3* inputPixels, uchar3* outputPixels, uint width, uint height /*, other arguments */)
+#define RADIUS 4
+#define BLOCKS 12
+#define THREADS 1024
+#define tile_w 128
+#define tile_h 128
+
+__global__ void imageFilterKernelPartA(uchar3* inputPixels, uchar3* outputPixels, int width, int height /*, other arguments */)
 {
-	// Need to use 12 blocks of 1024 threads...
-	// Develop a kernel in which threads directly access global memory for each pixel. 
-	// The workload is distributed in a way that each thread is given a different coarse 
-	// grained chunk of the output pixels to produce; therefore, the accesses to memory 
-	// will not be coalesced.
-
-
-	// Each thread will have to compute a specific number of pixels...
-	signed int radius = 4;
-
-	unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
-	unsigned int tid = threadIdx.x;
-	unsigned int numThreads = blockDim.x;
-	unsigned int numBlocks = gridDim.x;
-
-	// Number of pixels each thread will process...
-	unsigned int pixelsPerThread = ((width * height) / (numBlocks * numThreads)) +1;
-
-	//for(signed int location = 0; location < width * height; location++){ // For each pixel
-	for(int threadPixelNumber = 0; threadPixelNumber <= pixelsPerThread; threadPixelNumber++){
-		// Threads process non-contiguous pixels throughout the whole image
-		signed int location = pixelsPerThread * idx + threadPixelNumber;
-		signed int x = location % width;
-		signed int y = location / width;
-
-		int3 sum;
-		sum.x = 0;
-		sum.y = 0;
-		sum.z = 0;
-		int count = 0;
-
-		for (signed int i = -radius; i<=radius; i++){ // for every position on the row
-			for (signed int j = -radius; j<=radius; j++){ // for every row
-				// // Check if pixel is out of bounds...
-				// if (location + i * width + j >= width * height) continue;
-				// if (location + i * width + j < 0) continue;
-
-				// sum.x += (int) inputPixels[location+i * width+j].x;
-				// sum.y += (int) inputPixels[location+i * width+j].y;
-				// sum.z += (int) inputPixels[location+i * width+j].z;
-
-				// Check if pixel is out of bounds (improved version)...
-				if (x + i < 0      || y + j < 0      ) continue;
-				if (x + i >= width || y + j >= height) continue;
-
-				sum.x += (int) inputPixels[getLinearFromXY((x+i), (y+j), width, height)].x;
-				sum.y += (int) inputPixels[getLinearFromXY((x+i), (y+j), width, height)].y;
-				sum.z += (int) inputPixels[getLinearFromXY((x+i), (y+j), width, height)].z;
-
-				count++;
-			}
-		}
-
-		outputPixels[location].x = sum.x / count;
-		outputPixels[location].y = sum.y / count;
-		outputPixels[location].z = sum.z / count;
-	}
-
-	//Assign IDs to threads
-	//distribute work between threads
-	//do the computation and store the output pixels in outputPixels
-
-}
-__global__ void imageFilterKernelPartB(uchar3* inputPixels, uchar3* outputPixels, uint width, uint height /*, other arguments */)
-{
-	// Develop a kernel in which threads directly access global memory for each pixel. 
-	// The workload is distributed in a way that consecutive threads will produce consecutive
-	// output pixels; therefore, the accesses will be coalesced.
-
-	signed int radius = 4;
-
-	unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
-	unsigned int numThreads = blockDim.x;
-	unsigned int numBlocks = gridDim.x;
-
-	// Number of pixels each thread will process...
-	unsigned int pixelsPerThread = (width * height) / (numBlocks * numThreads);
-
-	// Group pixels; they cannot be processed all at once as there are not enough threads
-	for(int threadPixelNumber = 0; threadPixelNumber <= pixelsPerThread; threadPixelNumber++){
-		// Threads process consecutive values
-		signed int location = idx + threadPixelNumber * (numBlocks * numThreads);
-		signed int x = location % width;
-		signed int y = location / width;
-
-		int3 sum;
-		sum.x = 0;
-		sum.y = 0;
-		sum.z = 0;
-		int count = 0;
-
-		for (signed int i = -radius; i<=radius; i++){ // for every position on the row
-			for (signed int j = -radius; j<=radius; j++){ // for every row
-				// // Check if pixel is out of bounds...
-				// if (location + i * width + j >= width * height) continue;
-				// if (location + i * width + j < 0) continue;
-
-				// sum.x += (int) inputPixels[location+i * width+j].x;
-				// sum.y += (int) inputPixels[location+i * width+j].y;
-				// sum.z += (int) inputPixels[location+i * width+j].z;
-
-				// Check if pixel is out of bounds (improved version)...
-				if (x + i < 0      || y + j < 0      ) continue;
-				if (x + i >= width || y + j >= height) continue;
-
-				sum.x += (int) inputPixels[getLinearFromXY((x+i), (y+j), width, height)].x;
-				sum.y += (int) inputPixels[getLinearFromXY((x+i), (y+j), width, height)].y;
-				sum.z += (int) inputPixels[getLinearFromXY((x+i), (y+j), width, height)].z;
-
-				count++;
-			}
-		}
-
-		outputPixels[location].x = sum.x / count;
-		outputPixels[location].y = sum.y / count;
-		outputPixels[location].z = sum.z / count;
-	}
-
-	//Assign IDs to threads
-	//distribute work between threads
-	//do the computation and store the output pixels in outputPixels
-
-}
-__global__ void imageFilterKernelPartC(uchar3* inputPixels, uchar3* outputPixels, uint width, uint height /*, other arguments */)
-{
-	// Develop a kernel in which threads first load tiles of data into shared memory and
-	// access data from there.
-
-	__shared__ uchar3 s_input[128][128];
-
-	// Each thread will have to compute a specific number of pixels...
-	signed int radius = 4;
-
-	unsigned int tid = threadIdx.x;
-	unsigned int idx = blockIdx.x*blockDim.x + threadIdx.x;
-	unsigned int numThreads = blockDim.x;
-	unsigned int numBlocks = gridDim.x;
-
-	// Number of 120*120 tiles the image will be split into 
-	unsigned int tilesInImage = (width / 120 +1) * (height / 120 +1);
-	int numberOfPasses = tilesInImage / numBlocks;
-
-	//for (int passNumber = 0; passNumber <= numberOfPasses; passNumber++) { // For every tile
-	for (int passNumber = 0; passNumber <= numberOfPasses; passNumber++){
-		unsigned int linearTileNumber = numBlocks * passNumber + blockIdx.x;
-		//if (blockIdx.x == 11 && tid == 0) printf("(%i , numberOfPasses: %i, tilesInImage: %i, numBlocks: %i, numThreads:%i); \n", linearTileNumber, numberOfPasses, tilesInImage, numBlocks, numThreads);
-
-		unsigned int blockXcoordinate = linearTileNumber % (width/120 +1/* removed a +1 here for the edge of image*/);
-		unsigned int blockYcoordinate = linearTileNumber / (width/120 +1/* removed a +1 here for the edge of image*/);
-
-		unsigned int blockXoffset = blockXcoordinate * 120 -1;
-		unsigned int blockYoffset = blockYcoordinate * 120 -1;
-
-		// Get threads to load into shared memory
-		for (int i = 0; i < 16; i++){
-			unsigned int innerX = (threadIdx.x + i*1024) % 128; //[0-127]
-			unsigned int innerY = (threadIdx.x + i*1024) / 128; //[0-127]
-
-			// if (tid == 1000 && blockIdx.x == 0) {
-			// 	printf("(%i, %i, blockXoffset: %i, blockYoffset: %i)\n", innerX, innerY, blockXoffset, blockYoffset);
-			// 	printf("-> linear -> (%i)", getLinearFromXY((blockXoffset + innerX), (blockYoffset + innerY), width, height));
-			// }
-
-			int x = blockXoffset + innerX - radius;
-			int y = blockYoffset + innerY - radius;
-			int linearCoord = getLinearFromXY(x, y, width, height);
-
-			if (linearCoord > width*height) continue;
-			if ((x < 0 || y < 0) || (x >= width || y >= height)) continue;
-
-			s_input[innerX][innerY].x = inputPixels[linearCoord].x;
-			s_input[innerX][innerY].y = inputPixels[linearCoord].y;
-			s_input[innerX][innerY].z = inputPixels[linearCoord].z;
 	
-			// outputPixels[linearCoord].x = s_input[innerX][innerY].x;
-			// outputPixels[linearCoord].y = s_input[innerX][innerY].y;
-	 		// outputPixels[linearCoord].z = s_input[innerX][innerY].z;
-			
-		}
+	int chunks;
+	if ((float)(width*height)/(float)(BLOCKS*THREADS)-width*height/(BLOCKS*THREADS)>0)
+		chunks = width*height/(BLOCKS*THREADS)+1;
+	else
+		chunks = width*height/(BLOCKS*THREADS);
 
-		// Do the actual blurring
-		for (int i = 0; i < 16; i++){
-			// 120 pixels of output
-			signed int innerX = (threadIdx.x + i*1024) % 120 + (radius); //[0-127]
-			signed int innerY = (threadIdx.x + i*1024) / 120 + (radius); //[0-127]
+	int location=(blockDim.x * blockIdx.x + threadIdx.x)*chunks;
 
-			// Coordinates of the pixel in the original image
-			signed int x = (signed int)blockXoffset + innerX - radius;
-			signed int y = (signed int)blockYoffset + innerY - radius;
 
-			int linearCoord = getLinearFromXY(x, y, width, height);
-
-			if (linearCoord > width*height) continue;
-			if (x > blockXoffset + 120 || y > blockYoffset + 120) continue;
-			if ((x < 0 || y < 0) || (x >= width || y >= height)) continue;
-
-			int3 sum;
-			sum.x = 0;
-			sum.y = 0;
-			sum.z = 0;
+	for(int k = 0; k<chunks; k ++){
+		if(location<width*height){
+			int3 sum = make_int3(0, 0, 0);
 			int count = 0;
-	
-			for (signed int i = -radius; i<=radius; i++){ // for every position on the row
-				for (signed int j = -radius; j<=radius; j++){ // for every row
-					// Check if pixel is out of bounds (improved version)...
-					if (x + i < 0      || y + j < 0      ) continue;
-					if (x + i >= width || y + j >= height) continue;
-					if (innerX + i >= 128 || innerY + j >= 128) continue;
-	
-					sum.x += (int) s_input[innerX + i][innerY + j].x;
-					sum.y += (int) s_input[innerX + i][innerY + j].y;
-					sum.z += (int) s_input[innerX + i][innerY + j].z;
-	
-					count++;
+			for(int i = -RADIUS; i <= RADIUS; i ++)
+			{
+			    for(int j = -RADIUS; j <= RADIUS; j ++)
+			    {
+			        //proper checks to see if this pixel exists
+			        if((location+i*width) && ((location+i*width)/width)<height && (location%width+j) && (location%width+j)<width) {
+				        sum.x += inputPixels[location + i * width + j].x;
+				        sum.y += inputPixels[location + i * width + j].y;
+				        sum.z += inputPixels[location + i * width + j].z;
+				        count ++;
+				    }
+			    }
+			}
+			outputPixels[location].x = sum.x / count;
+			outputPixels[location].y = sum.y / count;
+			outputPixels[location].z = sum.z / count;
+		}
+		location++;
+	}
+
+}
+__global__ void imageFilterKernelPartB(uchar3* inputPixels, uchar3* outputPixels, int width, int height /*, other arguments */)
+{
+
+	int location=blockDim.x * blockIdx.x + threadIdx.x;
+
+	while(location<width*height){
+		int3 sum = make_int3(0, 0, 0);
+		int count = 0;
+		for(int i = -RADIUS; i <= RADIUS; i ++)
+		{
+			for(int j = -RADIUS; j <= RADIUS; j ++)
+			{
+				__syncthreads();
+			    //proper checks to see if this pixel exists
+			    if((location+i*width) && ((location+i*width)/width)<height && (location%width+j) && (location%width+j)<width) {
+			        sum.x += inputPixels[location + i * width + j].x;
+			        sum.y += inputPixels[location + i * width + j].y;
+			        sum.z += inputPixels[location + i * width + j].z;
+			        count ++;
+			    }
+			}
+		}
+		outputPixels[location].x = sum.x / count;
+		outputPixels[location].y = sum.y / count;
+		outputPixels[location].z = sum.z / count;
+		location+=(BLOCKS*THREADS);
+	}
+
+}
+__global__ void imageFilterKernelPartC(uchar3* inputPixels, uchar3* outputPixels, int width, int height /*, other arguments */)
+{
+	__shared__ uchar3 s_data[128][128];
+	int num = 16;
+
+	for(int y = 0; gridDim.y*y*120<=height; y++){
+		for(int x = 0; gridDim.x*x*120<=width; x++){
+			int offset_x = (blockIdx.x!= 0 || x!=0)? -8 : -4;
+			int offset_y = (blockIdx.y!= 0 || y!=0)? -8 : -4;
+
+			int index_x = blockDim.x*(blockIdx.x + gridDim.x*x) + threadIdx.x + offset_x*(blockIdx.x + 1 + gridDim.x*x);
+			int index_y = blockDim.y*num*(blockIdx.y + gridDim.y*y) + threadIdx.y + offset_y*(blockIdx.y + 1 + gridDim.y*y);
+			
+			if(index_x <= width || index_y <= height){
+				for(int i = 0 ; i< num ; i ++){
+					if(width*(index_y + 8*i) + index_x <= width*height)
+						s_data[threadIdx.x][threadIdx.y+8*i] = inputPixels[width*(index_y + 8*i) + index_x];
+					__syncthreads();
+				}
+
+				for(int k = 0; k<num; k++){
+					if (threadIdx.y + 8*k < 124 && threadIdx.y + 8*k >=4 && threadIdx.x < 124 && threadIdx.x >=4){
+						int3 sum = make_int3(0, 0, 0);
+						int count = 0;
+						int location = width*(index_y + 8*k) + index_x;
+						for(int i=-RADIUS;i<=RADIUS;i++){
+							for(int j=-RADIUS; j<=RADIUS;j++){
+								if((location+i*width) && ((location+i*width)/width)<height && (location%width+j) && (location%width+j)<width){
+									sum.x += s_data[threadIdx.x+j][threadIdx.y+8*k+i].x;
+				        			sum.y += s_data[threadIdx.x+j][threadIdx.y+8*k+i].y;
+				        			sum.z += s_data[threadIdx.x+j][threadIdx.y+8*k+i].z;
+				        			count ++;
+								}
+							}
+						}
+
+						if(location <=width*height){
+							outputPixels[location].x=sum.x/count;
+							outputPixels[location].y=sum.y/count;
+							outputPixels[location].z=sum.z/count;
+						}
+					}
 				}
 			}
-
-			outputPixels[linearCoord].x = sum.x / count;
-			outputPixels[linearCoord].y = sum.y / count;
-			outputPixels[linearCoord].z = sum.z / count;
-
 		}
 	}
-
-	//Assign IDs to threads
-	//distribute work between threads
-	//do the computation and store the output pixels in outputPixels
-
 }
 
 #endif // _IMAGEFILTER_KERNEL_H_
