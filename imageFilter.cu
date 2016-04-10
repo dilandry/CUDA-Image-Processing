@@ -37,11 +37,12 @@ int main(int argc, char *argv[])
   inputfname = argv[1];
   outputfname = argv[2];
   char partId = argv[3][0];
-  if(partId != '1' && partId != '2')
+  if(partId != '1' && partId != '2' && partId != '3')
   {
     printf("Please provide a filter number\n");
     printf("\t1: BoxBlur\n");
     printf("\t2: Sharpen\n");
+    printf("\t3: Sobel\n");
     exit(1);
   }
 

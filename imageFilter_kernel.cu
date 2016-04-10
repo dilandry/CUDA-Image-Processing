@@ -25,7 +25,17 @@ __device__ int sharpen[9][9] = {{ 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
    			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
    			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
    			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
-   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}};                       
+   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}};       
+
+__device__ int sobel[9][9] = {{ 4,  3,  2,  1,  0, -1, -2, -3, -4}, \
+   			 	    		  { 5,  4,  3,  2,  0, -2, -3, -4, -5}, \
+   			 	    		  { 6,  5,  4,  3,  0, -3, -4, -5, -6}, \
+   			 	    		  { 7,  6,  5,  4,  0, -4, -5, -6, -7}, \
+   			 	    		  { 8,  7,  6,  5,  0, -5, -6, -7, -8}, \
+   			 	    		  { 7,  6,  5,  4,  0, -4, -5, -6, -7}, \
+   			 	    		  { 6,  5,  4,  3,  0, -3, -4, -5, -6}, \
+   			 	    		  { 5,  4,  3,  2,  0, -2, -3, -4, -5}, \
+   			 	    		  { 4,  3,  2,  1,  0, -1, -2, -3, -4}};                  
 
 __global__ void imageFilterKernelPartA(uchar3* inputPixels, uchar3* outputPixels, int width, int height /*, other arguments */)
 {
@@ -108,6 +118,10 @@ __global__ void imageFilterKernel(uchar3* inputPixels, uchar3* outputPixels, int
 			break;
 		case '2' : // ----> Sharpen filter
     		memcpy(a, sharpen, sizeof (int) * 9 * 9);
+    		targetSum = 1;
+			break;
+		case '3' : // ----> Sobel filter
+    		memcpy(a, sobel, sizeof (int) * 9 * 9);
     		targetSum = 1;
 			break;
 	}
