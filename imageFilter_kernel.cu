@@ -137,7 +137,7 @@ __global__ void imageFilterKernel(uchar3* inputPixels, uchar3* outputPixels, int
 			if(index_x <= width || index_y <= height){
 				for(int i = 0 ; i< num ; i ++){
 					if(width*(index_y + 8*i) + index_x <= width*height)
-						s_data[threadIdx.x][threadIdx.y+8*i] = inputPixels[width*(index_y + 8*i) + index_x];
+						s_data[threadIdx.y+8*i][threadIdx.x] = inputPixels[width*(index_y + 8*i) + index_x];
 					__syncthreads();
 				}
 
@@ -151,9 +151,9 @@ __global__ void imageFilterKernel(uchar3* inputPixels, uchar3* outputPixels, int
 								if(a[i+RADIUS][j+RADIUS] == 0) continue;
 								if((location+i*width) && ((location+i*width)/width)<height && (location%width+j) && (location%width+j)<width){
 									// Pixel value is multiplied by kernel value at location
-					        		channel_value.x += (float)a[i+RADIUS][j+RADIUS] * static_cast<float>(s_data[threadIdx.x+j][threadIdx.y+8*k+i].x);
-					        		channel_value.y += (float)a[i+RADIUS][j+RADIUS] * static_cast<float>(s_data[threadIdx.x+j][threadIdx.y+8*k+i].y);
-					        		channel_value.z += (float)a[i+RADIUS][j+RADIUS] * static_cast<float>(s_data[threadIdx.x+j][threadIdx.y+8*k+i].z);
+					        		channel_value.x += (float)a[i+RADIUS][j+RADIUS] * static_cast<float>(s_data[threadIdx.y+8*k+i][threadIdx.x+j].x);
+					        		channel_value.y += (float)a[i+RADIUS][j+RADIUS] * static_cast<float>(s_data[threadIdx.y+8*k+i][threadIdx.x+j].y);
+					        		channel_value.z += (float)a[i+RADIUS][j+RADIUS] * static_cast<float>(s_data[threadIdx.y+8*k+i][threadIdx.x+j].z);
 								} else {
 									// If pixel is out of reach, no scaling
 									localSum --;
