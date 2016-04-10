@@ -44,7 +44,27 @@
 	// a[2][1]= a21; \
 	// a[0][2]= a02; \
 	// a[1][2]= a12; \
-	// a[2][2]= a22;                              
+	// a[2][2]= a22;     
+
+__device__ int boxBlur[9][9] = {{1, 1, 1, 1, 1, 1, 1, 1, 1}, \
+   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
+   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
+   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
+   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
+   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
+   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
+   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
+   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}};  
+
+__device__ int sharpen[9][9] = {{ 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
+   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
+   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
+   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
+   			 	     {-1, -1, -1, -1, 17, -1, -1, -1, -1}, \
+   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
+   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
+   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
+   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}};                       
 
 __global__ void imageFilterKernelPartA(uchar3* inputPixels, uchar3* outputPixels, int width, int height /*, other arguments */)
 {
@@ -112,38 +132,24 @@ __global__ void imageFilterKernelPartB(uchar3* inputPixels, uchar3* outputPixels
 	}
 
 }
-__global__ void imageFilterKernelPartC(uchar3* inputPixels, uchar3* outputPixels, int width, int height /*, other arguments */)
+__global__ void imageFilterKernel(uchar3* inputPixels, uchar3* outputPixels, int width, int height, char filterId /*, other arguments */)
 {
 	__shared__ uchar3 s_data[128][128];
 	int num = 16;
 
-	// CREATE_3X3_MORPH_KERNEL( BoxBlur, 9, \
- //                                            1, 1, 1, \
- //                                            1, 1, 1, \
- //                                            1, 1, 1);
-	// CREATE_9X9_MORPH_KERNEL( BoxBlur, 81, \
-	// 	                                  1, 1, 1, 1, 1, 1, 1, 1, 1,
-	// 	                                  1, 1, 1, 1, 1, 1, 1, 1, 1,
-	// 	                                  1, 1, 1, 1, 1, 1, 1, 1, 1,
-	// 	                                  1, 1, 1, 1, 1, 1, 1, 1, 1,
-	// 	                                  1, 1, 1, 1, 1, 1, 1, 1, 1,
-	// 	                                  1, 1, 1, 1, 1, 1, 1, 1, 1,
-	// 	                                  1, 1, 1, 1, 1, 1, 1, 1, 1,
-	// 	                                  1, 1, 1, 1, 1, 1, 1, 1, 1,
-	// 	                                  1, 1, 1, 1, 1, 1, 1, 1, 1);
-
 	// Image kernel to apply
-	int a[9][9] = {{1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-    		   	   {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-    		   	   {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-    		   	   {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-    		   	   {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-    		   	   {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-    		   	   {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-    		   	   {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-    		   	   {1, 1, 1, 1, 1, 1, 1, 1, 1}};
-    int targetSum = 81;
-
+	int targetSum;
+	int a[9][9];
+	switch(filterId){
+		case '1' : // ----> Box Blur filter (same as assignment)
+    		memcpy(a, boxBlur, sizeof (int) * 9 * 9);
+    		targetSum = 81;
+			break;
+		case '2' : // ----> Sharpen filter
+    		memcpy(a, sharpen, sizeof (int) * 9 * 9);
+    		targetSum = 1;
+			break;
+	}
 
 	for(int y = 0; gridDim.y*y*120<=height; y++){
 		for(int x = 0; gridDim.x*x*120<=width; x++){
@@ -163,27 +169,28 @@ __global__ void imageFilterKernelPartC(uchar3* inputPixels, uchar3* outputPixels
 				for(int k = 0; k<num; k++){
 					if (threadIdx.y + 8*k < 124 && threadIdx.y + 8*k >=4 && threadIdx.x < 124 && threadIdx.x >=4){
 						int3 sum = make_int3(0, 0, 0);
-						//DL--int count = 0;
+						float3 channel_value = make_float3(0, 0, 0);
 						int localSum = targetSum;
 						int location = width*(index_y + 8*k) + index_x;
 						for(int i=-RADIUS;i<=RADIUS;i++){
 							for(int j=-RADIUS; j<=RADIUS;j++){
 								if(a[i+RADIUS][j+RADIUS] == 0) continue;
 								if((location+i*width) && ((location+i*width)/width)<height && (location%width+j) && (location%width+j)<width){
-									sum.x += s_data[threadIdx.x+j][threadIdx.y+8*k+i].x;
-				        			sum.y += s_data[threadIdx.x+j][threadIdx.y+8*k+i].y;
-				        			sum.z += s_data[threadIdx.x+j][threadIdx.y+8*k+i].z;
-				        			//DL--count ++;
+									// Pixel value is multiplied by kernel value at location
+					        		channel_value.x += (float)a[i+RADIUS][j+RADIUS] * static_cast<float>(s_data[threadIdx.x+j][threadIdx.y+8*k+i].x);
+					        		channel_value.y += (float)a[i+RADIUS][j+RADIUS] * static_cast<float>(s_data[threadIdx.x+j][threadIdx.y+8*k+i].y);
+					        		channel_value.z += (float)a[i+RADIUS][j+RADIUS] * static_cast<float>(s_data[threadIdx.x+j][threadIdx.y+8*k+i].z);
 								} else {
+									// If pixel is out of reach, no scaling
 									localSum --;
 								}
 							}
 						}
 
 						if(location <=width*height){
-							outputPixels[location].x=sum.x/localSum;
-							outputPixels[location].y=sum.y/localSum;
-							outputPixels[location].z=sum.z/localSum;
+							outputPixels[location].x=channel_value.x/localSum;
+							outputPixels[location].y=channel_value.y/localSum;
+							outputPixels[location].z=channel_value.z/localSum;
 						}
 					}
 				}

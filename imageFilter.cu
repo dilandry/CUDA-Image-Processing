@@ -37,9 +37,11 @@ int main(int argc, char *argv[])
   inputfname = argv[1];
   outputfname = argv[2];
   char partId = argv[3][0];
-  if(partId != 'a' && partId != 'b' && partId != 'c')
+  if(partId != '1' && partId != '2')
   {
-    printf("Please provide a part specifier: a, b, or c\n");
+    printf("Please provide a filter number\n");
+    printf("\t1: BoxBlur\n");
+    printf("\t2: Sharpen\n");
     exit(1);
   }
 
@@ -114,24 +116,13 @@ int main(int argc, char *argv[])
   time_t diff;
   gettimeofday(&start_tv, NULL);
 
+  block.x = 128;
+  block.y = 8;
+  grid.x = 4;
+  grid.y = 3;
 
-  if(partId == 'a')
-  {
-    imageFilterKernelPartA<<<grid, block>>>((uchar3*) d_inputPixels, (uchar3*) d_outputPixels, width, height /*, other arguments */); // Changed to uchar3
-  } 
-  else if(partId == 'b')
-  {
-    imageFilterKernelPartB<<<grid, block>>>((uchar3*) d_inputPixels, (uchar3*) d_outputPixels, width, height /*, other arguments */); // Changed to uchar3
-  }
-  else if(partId == 'c')
-  {
-    block.x = 128;
-    block.y = 8;
-    grid.x = 4;
-    grid.y = 3;
-
-    imageFilterKernelPartC<<<grid, block>>>((uchar3*) d_inputPixels, (uchar3*) d_outputPixels, width, height /*, other arguments */); // Changed to uchar3
-  }
+  imageFilterKernel<<<grid, block>>>((uchar3*) d_inputPixels, (uchar3*) d_outputPixels, width, height, partId /*, other arguments */); // Changed to uchar3
+  
 
   cudaThreadSynchronize();
 
