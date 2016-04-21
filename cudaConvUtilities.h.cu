@@ -52,6 +52,38 @@ using namespace std;
    int* shmOutput   = (int*)&shmPadRect[ROUNDUP32(padRectPixels)];   \
    int nLoop;
 
+////////////////////////////////////////////////////////////////////////////////
+//
+// This macros is defined because EVERY convolution-like function has the same
+// variables.  Mainly, the pixel identifiers for this thread based on block
+// size, and the size of the padded rectangle that each block will work with
+//
+// ***This is actually the same as the CONVOLVE version
+//
+////////////////////////////////////////////////////////////////////////////////
+#define CREATE_CONVOLUTION_VARIABLES2(psfRowRad, psfColRad) \
+\
+   const int cornerRow = blockDim.x*blockIdx.x;   \
+   const int cornerCol = blockDim.y*blockIdx.y;   \
+   const int globalRow = cornerRow + threadIdx.x;   \
+   const int globalCol = cornerCol + threadIdx.y;   \
+   const int globalIdx = IDX_1D(globalRow, globalCol, imgCols);   \
+\
+   const int localRow    = threadIdx.x;   \
+   const int localCol    = threadIdx.y;   \
+   const int localIdx    = IDX_1D(localRow, localCol, blockDim.y);   \
+   const int localPixels = blockDim.x*blockDim.y;   \
+\
+   const int padRectStride = blockDim.y + 2*psfColRad;   \
+   const int padRectRow    = localRow + psfRowRad;   \
+   const int padRectCol    = localCol + psfColRad;   \
+   const int padRectPixels = padRectStride * (blockDim.x + 2*psfRowRad);   \
+\
+   __shared__ char sharedMem[8192]; \
+   uchar3* shmPadRect  = (uchar3*)sharedMem;   \
+   uchar3* shmOutput   = (uchar3*)&shmPadRect[ROUNDUP32(padRectPixels)];   \
+   int nLoop;
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -76,6 +108,32 @@ using namespace std;
             shmPadRect[prIndex] = devInPtr[glIdx];   \
          else   \
             shmPadRect[prIndex] = 0; \
+      }   \
+   } 
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copy chunk of global memory to shared memory in this block for doing the
+// convolution
+//
+////////////////////////////////////////////////////////////////////////////////
+#define PREPARE_PADDED_RECTANGLE2(psfRowRad, psfColRad) \
+\
+   nLoop = (padRectPixels/localPixels)+1;   \
+   for(int loopIdx=0; loopIdx<nLoop; loopIdx++)   \
+   {   \
+      int prIndex = loopIdx*localPixels + localIdx;   \
+      if(prIndex < padRectPixels)   \
+      {   \
+         int prRow = ROW_2D(prIndex, padRectStride);   \
+         int prCol = COL_2D(prIndex, padRectStride);   \
+         int glRow = cornerRow + prRow - psfRowRad;   \
+         int glCol = cornerCol + prCol - psfColRad;   \
+         int glIdx = IDX_1D(glRow, glCol, imgCols);   \
+         if(glCol>=0 && glCol<imgCols && glRow>=0 && glRow<imgRows)   \
+            shmPadRect[prIndex] = devInPtr[glIdx];   \
+         else   \
+            shmPadRect[prIndex] = make_uchar3(0, 0, 0); \
       }   \
    }   
 

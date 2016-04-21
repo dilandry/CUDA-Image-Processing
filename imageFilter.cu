@@ -11,11 +11,13 @@
 
 
 #include "imageFilter_kernel.cu"
+#include "cudaConvolution.cu"
 
 #define IMG_DATA_OFFSET_POS 10
 #define BITS_PER_PIXEL_POS 28
 
-int swap;
+int swap2;
+void blurCPU(uchar3*, int, int, char3*);
 void test_endianess();
 void swap_bytes(char *bytes, int num_bytes);
 
@@ -31,18 +33,23 @@ int main(int argc, char *argv[])
   if (argc < 4)
   {
     printf("USAGE: %s <bitmap input filename> <bitmap output file name> <part specifier>\n", argv[0]);
+    printf("\t1: BoxBlur\n");
+    printf("\t2: Sharpen\n");
+    printf("\t3: Sobel\n");
+    printf("\t4: Blur filter executed on CPU\n");
     exit(1);
   }
 
   inputfname = argv[1];
   outputfname = argv[2];
   char partId = argv[3][0];
-  if(partId != '1' && partId != '2' && partId != '3')
+  if(partId != '1' && partId != '2' && partId != '3' && partId != '4')
   {
     printf("Please provide a filter number\n");
     printf("\t1: BoxBlur\n");
     printf("\t2: Sharpen\n");
     printf("\t3: Sobel\n");
+    printf("\t4: Blur filter executed on CPU\n");
     exit(1);
   }
 
@@ -64,7 +71,7 @@ int main(int argc, char *argv[])
   test_endianess();     // will set the variable "swap"
 
   unsigned short *bitsperpixel = (unsigned short *)(&(fdata[BITS_PER_PIXEL_POS]));
-  if (swap) 
+  if (swap2) 
   {
     printf("swapping\n");
     swap_bytes((char *)(bitsperpixel), sizeof(*bitsperpixel));
@@ -79,7 +86,7 @@ int main(int argc, char *argv[])
   }
 
   unsigned short *data_pos = (unsigned short *)(&(fdata[IMG_DATA_OFFSET_POS]));
-  if (swap) 
+  if (swap2) 
   {
     swap_bytes((char *)(data_pos), sizeof(*data_pos));
   }
@@ -96,6 +103,12 @@ int main(int argc, char *argv[])
 
   //p will point to the first pixel
   unsigned char* p = &(fdata[*data_pos]); //DL: Changed to unsigned
+
+  uchar3* p_uchar3 = (uchar3*) malloc(height * width *3);
+  memcpy(p_uchar3, p, height * width * 3);
+
+  // Allocate output pixel array
+  char3* outputPixelsCPU = (char3*) malloc(height * width*3);
 
   //Set the number of blocks and threads
   //CDL--dim3 grid(1024, 1, 1/*x, y, x*/);
@@ -117,13 +130,18 @@ int main(int argc, char *argv[])
   time_t diff;
   gettimeofday(&start_tv, NULL);
 
-  block.x = 128;
-  block.y = 8;
-  grid.x = 4;
-  grid.y = 3;
+  // Blur on CPU, if that option was selected
+  if (partId == '4'){
+    blurCPU(p_uchar3, width, height, outputPixelsCPU);
+  } else {
+    block.x = 128;
+    block.y = 8;
+    grid.x = 4;
+    grid.y = 3;
 
-  imageFilterKernel<<<grid, block>>>((uchar3*) d_inputPixels, (uchar3*) d_outputPixels, width, height, partId /*, other arguments */); // Changed to uchar3
-  
+    imageFilterKernel<<<grid, block>>>((uchar3*) d_inputPixels, (uchar3*) d_outputPixels, width, height, partId /*, other arguments */); // Changed to uchar3
+    //convolveBasicNb2<<<grid, block>>>((uchar3*) d_inputPixels, (uchar3*) d_outputPixels, width, height, 4, 4 /*, other arguments */); // Changed to uchar3
+  }
 
   cudaThreadSynchronize();
 
@@ -139,7 +157,11 @@ int main(int argc, char *argv[])
   char* outputPixels = (char*) malloc(height * width * 3);
   cudaMemcpy(outputPixels, d_outputPixels, height * width * 3, cudaMemcpyDeviceToHost);
 
-  memcpy(&(fdata[*data_pos]), outputPixels, height * width * 3);
+  if (partId == '4'){
+    memcpy(&(fdata[*data_pos]), outputPixelsCPU, height * width * 3);
+  } else {
+    memcpy(&(fdata[*data_pos]), outputPixels, height * width * 3);
+  }
 
   FILE *writeFile; 
   writeFile = fopen(outputfname,"w+");
@@ -150,16 +172,45 @@ int main(int argc, char *argv[])
   return 0;
 } 
 
+// This function applies the blur filter to the image using the CPU
+void blurCPU(uchar3* p_uchar3, int width, int height, char3* outputPixelsCPU) {
+  int radius = 4;
+
+  // For each pixel...
+  for(int i=0; i<height; i++){
+    for(int j=0; j<width; j++){
+      int3 sum = make_int3(0,0,0);
+      int count = 0;
+
+      // Apply blur...
+      for (int i_off = -radius; i_off<=radius; i_off++){
+        for (int j_off = -radius; j_off<=radius; j_off++){
+          if (((i+i_off)*width + j+j_off) >= width*height 
+            || ((i+i_off)*width + j+j_off) >= width*height) continue;
+          if (((i+i_off)*width + j+j_off) < 0 
+            || ((i+i_off)*width + j+j_off) < 0) continue;
+
+          sum.x += p_uchar3[((i+i_off)*width + j+j_off)].x;
+          sum.y += p_uchar3[((i+i_off)*width + j+j_off)].y;
+          sum.z += p_uchar3[((i+i_off)*width + j+j_off)].z;
+          count++;
+        }
+      }
+      outputPixelsCPU[IDX_1D(i,j,width)] = make_char3(sum.x/count, sum.y/count, sum.z/count);
+    }
+  }
+}
+
 void test_endianess() {
     unsigned int num = 0x12345678;
     char *low = (char *)(&(num));
     if (*low ==  0x78) {
         //dprintf("No need to swap\n");
-        swap = 0;
+        swap2 = 0;
     }
     else if (*low == 0x12) {
         //dprintf("Need to swap\n");
-        swap = 1;
+        swap2 = 1;
     }
     else {
         printf("Error: Invalid value found in memory\n");
