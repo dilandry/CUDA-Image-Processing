@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
   inputfname = argv[1];
   outputfname = argv[2];
   char partId = argv[3][0];
+
   if(partId != '1' && partId != '2' && partId != '3')
   {
     printf("Please provide a filter number\n");
@@ -122,7 +123,8 @@ int main(int argc, char *argv[])
   grid.x = 4;
   grid.y = 3;
 
-  imageFilterKernel<<<grid, block>>>((uchar3*) d_inputPixels, (uchar3*) d_outputPixels, width, height, partId /*, other arguments */); // Changed to uchar3
+
+  imageFilterKernel<<<grid, block>>>((uchar3*) d_inputPixels, (uchar3*) d_outputPixels, width, height, partId/*, other arguments */); // Changed to uchar3
   
 
   cudaThreadSynchronize();

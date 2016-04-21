@@ -1,41 +1,12 @@
 #ifndef _IMAGEFILTER_KERNEL_H_
 #define _IMAGEFILTER_KERNEL_H_
 
-#define RADIUS 4
+#define RADIUS 1
 #define BLOCKS 12
 #define THREADS 1024
 #define tile_w 128
 #define tile_h 128   
 
-__device__ int boxBlur[9][9] = {{1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}, \
-   		   	  		 {1, 1, 1, 1, 1, 1, 1, 1, 1}};  
-
-__device__ int sharpen[9][9] = {{ 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
-   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
-   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
-   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
-   			 	     {-1, -1, -1, -1, 17, -1, -1, -1, -1}, \
-   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
-   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
-   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}, \
-   			 	     { 0,  0,  0,  0, -1,  0,  0,  0,  0}};       
-
-__device__ int sobel[9][9] = {{ 4,  3,  2,  1,  0, -1, -2, -3, -4}, \
-   			 	    		  { 5,  4,  3,  2,  0, -2, -3, -4, -5}, \
-   			 	    		  { 6,  5,  4,  3,  0, -3, -4, -5, -6}, \
-   			 	    		  { 7,  6,  5,  4,  0, -4, -5, -6, -7}, \
-   			 	    		  { 8,  7,  6,  5,  0, -5, -6, -7, -8}, \
-   			 	    		  { 7,  6,  5,  4,  0, -4, -5, -6, -7}, \
-   			 	    		  { 6,  5,  4,  3,  0, -3, -4, -5, -6}, \
-   			 	    		  { 5,  4,  3,  2,  0, -2, -3, -4, -5}, \
-   			 	    		  { 4,  3,  2,  1,  0, -1, -2, -3, -4}};                  
 
 __global__ void imageFilterKernelPartA(uchar3* inputPixels, uchar3* outputPixels, int width, int height /*, other arguments */)
 {
@@ -103,25 +74,84 @@ __global__ void imageFilterKernelPartB(uchar3* inputPixels, uchar3* outputPixels
 	}
 
 }
-__global__ void imageFilterKernel(uchar3* inputPixels, uchar3* outputPixels, int width, int height, char filterId /*, other arguments */)
+__global__ void imageFilterKernel(uchar3* inputPixels, uchar3* outputPixels, int width, int height, char filterId/*, other arguments */)
 {
 	__shared__ uchar3 s_data[128][128];
 	int num = 16;
-
 	// Image kernel to apply
 	int targetSum;
-	int a[9][9];
+	const int dem = 2*RADIUS +1;
+	int a[dem][dem];
+	
+	/*
+	int **a;
+  	a= (int **)malloc(sizeof(int *)*dem);
+  	for(int i=0; i < dem; i++) {
+  		a[i] = (int *)malloc(sizeof(int)*dem);
+	}*/
+	
+	int mid = (dem + 1)/2; 
 	switch(filterId){
 		case '1' : // ----> Box Blur filter (same as assignment)
-    		memcpy(a, boxBlur, sizeof (int) * 9 * 9);
-    		targetSum = 81;
+			/*
+			int **boxBlur;
+	  		boxBlur= (int **)malloc(sizeof(int *)*dem);
+	  		for(int i=0; i < dem; i++) {
+	  				boxBlur[i] = (int *)malloc(sizeof(int)*dem);
+			}*/
+			for (int i =0 ; i < dem; i++){
+				for (int j = 0; j < dem ; j++){
+					a[i][j] = 1;
+				}
+			}
+    		//memcpy(a, boxBlur, sizeof (int) * dem * dem);
+    		targetSum = dem * dem;
 			break;
 		case '2' : // ----> Sharpen filter
-    		memcpy(a, sharpen, sizeof (int) * 9 * 9);
+			/*
+			int **sharpen;
+	  		sharpen= (int **)malloc(sizeof(int *)*dem);
+	  		for(int i=0; i < dem; i++) {
+	  				sharpen[i] = (int *)malloc(sizeof(int)*dem);
+			}*/
+			for (int i =0 ; i < dem; i++){
+				for (int j = 0; j < dem ; j++){
+					if( i == mid && j == mid){
+						a[i][j] = dem*2 -1;
+					}else if( i == mid || j == mid){
+						a[i][j] = -1;
+					}else {
+						//sharpen[i][j] = 0;
+						a[i][j] = 0;
+					}
+				}
+			}
+    		//memcpy(a, sharpen, sizeof (int) * dem * dem);
     		targetSum = 1;
 			break;
 		case '3' : // ----> Sobel filter
-    		memcpy(a, sobel, sizeof (int) * 9 * 9);
+			/*
+			int **sobel;
+	  		sobel= (int **)malloc(sizeof(int *)*dem);
+	  		for(int i=0; i < dem; i++) {
+	  				sobel[i] = (int *)malloc(sizeof(int)*dem);
+			}*/
+
+			int s = (dem - 1)/2; 
+			for (int i =0 ; i < mid ; i++){
+				for (int j = 0; j < mid - 1; j++){
+					a[i][j] = s + i -j;
+					a[i][dem-j-1] = -(s + i-j);
+					
+					a[dem - i - 1][j] = s + i -j;
+					a[dem - i - 1][dem-j-1] = -(s + i-j);
+					
+				}
+				a[i][mid-1] = 0;
+				a[dem-i-1][mid-1] = 0;
+			}
+			
+    		//memcpy(a, sobel, sizeof (int) * dem * dem);
     		targetSum = 1;
 			break;
 	}
@@ -171,6 +201,12 @@ __global__ void imageFilterKernel(uchar3* inputPixels, uchar3* outputPixels, int
 				}
 			}
 		}
+	}
+
+	for (int i = 0; i < dem; i++)
+	{
+    	int* currentIntPtr = a[i];
+    	free(currentIntPtr);
 	}
 }
 
