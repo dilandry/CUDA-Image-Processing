@@ -115,10 +115,6 @@ int main(int argc, char *argv[])
   //CDL--dim3 block(12, 1, 1/*x, y, x*/);
   dim3 grid(12, 1, 1/*x, y, x*/);
   dim3 block(1024, 1, 1/*x, y, x*/);
-
-  unsigned char* d_inputPixels;
-  cudaMalloc((void**) &d_inputPixels, width * height * 3);
-  cudaMemcpy(d_inputPixels, p, width * height * 3, cudaMemcpyHostToDevice);
   
   unsigned char* d_outputPixels;
   cudaMalloc((void**) &d_outputPixels, width * height * 3);
@@ -134,6 +130,10 @@ int main(int argc, char *argv[])
   if (partId == '4'){
     blurCPU(p_uchar3, width, height, outputPixelsCPU);
   } else {
+    unsigned char* d_inputPixels;
+    cudaMalloc((void**) &d_inputPixels, width * height * 3);
+    cudaMemcpy(d_inputPixels, p, width * height * 3, cudaMemcpyHostToDevice);
+
     block.x = 128;
     block.y = 8;
     grid.x = 4;
